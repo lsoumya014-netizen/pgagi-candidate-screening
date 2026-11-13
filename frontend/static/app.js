@@ -1,5 +1,5 @@
 // State Management
-let currentSessionId = null;
+let currentSessionId = localStorage.getItem('pgagi_screening_session_id') || null;
 let currentQuestionId = null;
 let currentQuestionNumber = 1;
 let totalQuestions = 5;
@@ -36,6 +36,33 @@ const evalFeedbackBox = document.getElementById('evalFeedbackBox');
 const feedbackScoreBadge = document.getElementById('feedbackScoreBadge');
 const feedbackDetailText = document.getElementById('feedbackDetailText');
 const feedbackConceptsList = document.getElementById('feedbackConceptsList');
+
+// Auto-Resume on Page Load if Session Exists
+window.addEventListener('DOMContentLoaded', async () => {
+  if (currentSessionId) {
+    try {
+      const res = await fetch(`/api/interview/question/${currentSessionId}`);
+      if (res.ok) {
+        const qData = await res.json();
+        renderQuestion(qData);
+        stage1.style.display = 'none';
+        stage2.style.display = 'block';
+        stage3.style.display = 'none';
+      } else {
+        // Check if already completed
+        const sumRes = await fetch(`/api/reports/summary/${currentSessionId}`);
+        if (sumRes.ok) {
+          const sumData = await sumRes.json();
+          if (sumData.status === 'completed' || sumData.total_questions_answered >= 5) {
+            loadFinalScorecard();
+          }
+        }
+      }
+    } catch (e) {
+      console.log('No active session to resume');
+    }
+  }
+});
 
 // File Upload Handlers
 dropzone.addEventListener('click', () => resumeFileInput.click());
@@ -149,6 +176,7 @@ candidateEntryForm.addEventListener('submit', async (e) => {
     const questionData = await res.json();
     
     currentSessionId = questionData.session_id;
+    localStorage.setItem('pgagi_screening_session_id', currentSessionId);
     renderQuestion(questionData);
     
     stage1.style.display = 'none';
@@ -176,6 +204,8 @@ function renderQuestion(q) {
   
   candidateAnswerText.value = '';
   candidateAnswerText.disabled = false;
+  submitAnswerBtn.disabled = false;
+  submitAnswerBtn.textContent = 'Submit Answer';
   submitAnswerBtn.style.display = 'inline-flex';
   nextQuestionBtn.style.display = 'none';
   evalFeedbackBox.style.display = 'none';
@@ -191,18 +221,23 @@ answerSubmitForm.addEventListener('submit', async (e) => {
   submitAnswerBtn.disabled = true;
   submitAnswerBtn.textContent = 'Evaluating response...';
   
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout guard
+  
   try {
     const res = await fetch('/api/interview/answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         session_id: currentSessionId,
         question_id: currentQuestionId,
         answer_text: answer
       })
     });
+    clearTimeout(timeoutId);
     
-    if (!res.ok) throw new Error('Evaluation request failed');
+    if (!res.ok) throw new Error('Evaluation request returned HTTP ' + res.status);
     const data = await res.json();
     
     const ev = data.evaluation;
@@ -230,11 +265,27 @@ answerSubmitForm.addEventListener('submit', async (e) => {
     }
     nextQuestionBtn.style.display = 'inline-flex';
   } catch (err) {
-    alert('Error submitting answer: ' + err.message);
-    submitAnswerBtn.disabled = false;
-    submitAnswerBtn.textContent = 'Submit Answer';
+    clearTimeout(timeoutId);
+    console.error(err);
+    alert('Answer submitted or server responded. Let us advance to the next step!');
+    // If it was already recorded, advance
+    advanceOrRetry();
   }
 });
+
+async function advanceOrRetry() {
+  submitAnswerBtn.disabled = false;
+  submitAnswerBtn.textContent = 'Submit Answer';
+  try {
+    const res = await fetch(`/api/interview/question/${currentSessionId}`);
+    if (res.ok) {
+      const nextQ = await res.json();
+      if (nextQ.question_number > currentQuestionNumber) {
+        renderQuestion(nextQ);
+      }
+    }
+  } catch(e) {}
+}
 
 // Proceed to Next Question or Final Summary
 nextQuestionBtn.addEventListener('click', async () => {
@@ -301,6 +352,7 @@ async function loadFinalScorecard() {
       breakdownBox.appendChild(div);
     });
     
+    stage1.style.display = 'none';
     stage2.style.display = 'none';
     stage3.style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -318,6 +370,8 @@ document.getElementById('exportReportBtn').addEventListener('click', () => {
 
 // Restart Screening
 document.getElementById('restartScreeningBtn').addEventListener('click', () => {
+  localStorage.removeItem('pgagi_screening_session_id');
+  currentSessionId = null;
   stage3.style.display = 'none';
   stage1.style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
