@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PG-AGI | AI-Powered Role-Based Screening System</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-logo">PG-AGI</div>
+        <div class="brand-title">
+          <h1>Intelligent Candidate Screening System</h1>
+          <p>Grounded Technical Interview Simulator powered by Textbook RAG Architecture</p>
+        </div>
+      </div>
+      <div class="header-status">
+        <span class="status-dot"></span>
+        <span id="systemStatusText">RAG Knowledge Engine Active</span>
+      </div>
+    </header>
+
+    <!-- STAGE 1: Candidate Entry & Resume Processing -->
+    <div id="stage1-container" class="card">
+      <h2 class="card-title">1. Candidate Entry & Target Role</h2>
+      <p class="card-subtitle">Upload your resume to extract technical competencies, select your engineering track, and initialize your grounded technical interview.</p>
+      
+      <form id="candidateEntryForm">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div class="form-group">
+            <label for="candidateName">Candidate Full Name *</label>
+            <input type="text" id="candidateName" class="form-input" placeholder="e.g. Soumya L" required value="Soumya L">
+          </div>
+          <div class="form-group">
+            <label for="candidateEmail">Email Address *</label>
+            <input type="email" id="candidateEmail" class="form-input" placeholder="e.g. lsoumya014@gmail.com" required value="lsoumya014@gmail.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="targetRole">Select Target Role *</label>
+          <select id="targetRole" class="form-select" required>
+            <option value="backend_engineer" selected>Backend Engineering (FastAPI, Python, Systems, ACID, Caching, Event-Driven)</option>
+            <option value="ai_ml_engineer">AI / Machine Learning Engineer (Tom Mitchell, Burkov, RAG, Optimization, Deep Learning)</option>
+            <option value="data_science_ml">Data Science / Applied ML (Müller & Guido, Brownlee, Feature Eng, Metrics, Leakage)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Resume Upload (PDF or Text) *</label>
+          <div class="file-dropzone" id="dropzone">
+            <p><strong>Click to choose PDF Resume</strong> or drag & drop file here</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Supports .pdf or text files</p>
+            <input type="file" id="resumeFileInput" accept=".pdf,.txt" style="display: none;">
+            <div id="selectedFileName" style="margin-top: 10px; font-weight: 600; color: var(--accent-emerald);"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="resumeRawText">Or Paste Resume Text</label>
+          <textarea id="resumeRawText" class="form-textarea" placeholder="Paste resume plain text here...">SOUMYA L
+Python Developer (FastAPI / Flask) | Backend & RESTful API Engineer
+Hubballi, Karnataka, India | lsoumya014@gmail.com | github.com/lsoumya014-netizen
+
+PROFESSIONAL SUMMARY
+Computer Science graduate (B.E. First Class with Distinction, 8.76 CGPA, 2019 – 2022) with 1–3 years of software engineering experience specializing in backend engineering with Python, FastAPI, and Flask. Proficient in architecting scalable RESTful APIs, Pydantic data validation, async/await concurrency, SQLAlchemy ORM, and database optimization with PostgreSQL/MySQL. Automated testing via pytest and integration with modern services.</textarea>
+        </div>
+
+        <div id="parsedSkillsContainer" style="display: none; margin-bottom: 25px;">
+          <label style="font-size: 13px; font-weight: 600; color: #cbd5e1; text-transform: uppercase;">Extracted Skills & Competencies</label>
+          <div class="skills-pill-box" id="skillsPillBox"></div>
+        </div>
+
+        <div style="display: flex; gap: 15px;">
+          <button type="button" id="parseResumeBtn" class="btn btn-secondary">⚡ Auto-Extract Skills</button>
+          <button type="submit" id="startInterviewBtn" class="btn btn-primary">🚀 Start Technical Interview</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- STAGE 2: Interactive Interview Session -->
+    <div id="stage2-container" class="card" style="display: none;">
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="interviewProgressFill"></div>
+      </div>
+
+      <div class="interview-meta">
+        <div>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">ROUND </span>
+          <strong id="questionCounterText" style="font-size: 16px; color: var(--accent-primary);">1 of 5</strong>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <span class="topic-badge" id="topicBadge">System Architecture</span>
+          <span style="font-size: 12px; background: rgba(99,102,241,0.15); color: #c7d2fe; padding: 4px 10px; border-radius: 12px;" id="difficultyBadge">Intermediate</span>
+        </div>
+      </div>
+
+      <!-- Grounded RAG Context Citation -->
+      <div class="grounded-evidence-box">
+        <strong>📚 Grounded Knowledge Base Reference:</strong>
+        <div id="groundedContextText" style="margin-top: 4px; font-style: italic;">Loading textbook context...</div>
+      </div>
+
+      <!-- Dynamic Question -->
+      <div class="question-box">
+        <p id="questionPromptText">Loading dynamic interview question...</p>
+      </div>
+
+      <!-- Candidate Answer Input -->
+      <form id="answerSubmitForm">
+        <div class="form-group">
+          <label for="candidateAnswerText">Your Technical Answer *</label>
+          <textarea id="candidateAnswerText" class="form-textarea" style="min-height: 180px;" placeholder="Provide your detailed explanation, architecture choices, mathematical formulas or implementation steps..." required></textarea>
+        </div>
+
+        <div id="evalFeedbackBox" class="eval-feedback-alert" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong id="feedbackScoreBadge" style="font-size: 16px; color: var(--accent-emerald);">Score: 8.5/10</strong>
+            <span id="feedbackStatusText" style="font-size: 13px; color: var(--text-muted);">Evaluation Completed</span>
+          </div>
+          <p id="feedbackDetailText" style="margin-top: 8px; font-size: 14px; color: #e2e8f0;"></p>
+          <div id="feedbackConceptsList" style="margin-top: 10px; font-size: 12px; color: #94a3b8;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px;">
+          <button type="submit" id="submitAnswerBtn" class="btn btn-primary">Submit Answer</button>
+          <button type="button" id="nextQuestionBtn" class="btn btn-primary" style="display: none;">Proceed to Next Question ➔</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- STAGE 3: Final Candidate Scorecard & Insights -->
+    <div id="stage3-container" class="card" style="display: none;">
+      <div class="scorecard-header">
+        <div>
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Technical Screening Scorecard</span>
+          <h2 id="scorecardCandidateName" style="font-size: 26px; font-weight: 800; margin-top: 4px;">Soumya L</h2>
+          <p id="scorecardRoleText" style="color: var(--text-muted); font-size: 14px;">Backend Engineering Track</p>
+        </div>
+        <div style="text-align: right;">
+          <div class="score-badge-huge" id="finalScoreDisplay">8.8<span style="font-size: 20px; color: var(--text-muted);">/10</span></div>
+          <div class="recommendation-pill" id="recommendationBadge">Strong Hire</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Executive Evaluation Summary</label>
+        <p id="executiveSummaryText" style="background: var(--bg-secondary); padding: 16px; border-radius: 10px; font-size: 15px; border-left: 3px solid var(--accent-emerald);"></p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+        <div style="background: var(--bg-secondary); padding: 18px; border-radius: 10px; border: 1px solid var(--border-color);">
+          <strong style="color: var(--accent-emerald); display: block; margin-bottom: 10px;">🌟 Demonstrated Strengths</strong>
+          <ul id="strengthsList" style="padding-left: 18px; font-size: 13px; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;"></ul>
+        </div>
+        <div style="background: var(--bg-secondary); padding: 18px; border-radius: 10px; border: 1px solid var(--border-color);">
+          <strong style="color: var(--accent-amber); display: block; margin-bottom: 10px;">💡 Recommended Growth Areas</strong>
+          <ul id="improvementsList" style="padding-left: 18px; font-size: 13px; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;"></ul>
+        </div>
+      </div>
+
+      <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 15px;">Interview Questions & Grounded Responses</h3>
+      <div id="breakdownContainer"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <button type="button" id="restartScreeningBtn" class="btn btn-secondary">↺ New Candidate Screening</button>
+        <button type="button" id="exportReportBtn" class="btn btn-primary">📥 Export Evaluation JSON</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

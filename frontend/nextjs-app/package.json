@@ -1,0 +1,16 @@
+{
+  "name": "pgagi-candidate-screening-frontend",
+  "version": "1.0.0",
+  "description": "AI-Powered Role-Based Screening System Frontend (Next.js/React)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "lucide-react": "^0.368.0"
+  }
+}
